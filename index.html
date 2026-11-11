@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Пепельный предел - концепция игрового интерфейса</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+SC:wght@600;700&family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f0d0b; --panel:#1a1613; --panel2:#231d18; --line:#3a3027; --ink:#efe6d8; --mute:#a3968a;
+  --ember:#ff7a2f; --ember2:#ffb15c; --hp:#d8423a; --mp:#3d8bff; --xp:#c9a646; --ok:#57c27a;
+  --common:#9aa3a8; --rare:#4aa3ff; --epic:#b06cff; --legend:#ff9a3c;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Manrope,system-ui,sans-serif}
+a{color:var(--ember2)}
+.wrap{max-width:1240px;margin:0 auto;padding:0 20px}
+header.top{display:flex;justify-content:space-between;align-items:center;padding:18px 0}
+.brand{font-family:'Cormorant SC',serif;font-size:22px;letter-spacing:.08em}
+.brand b{color:var(--ember)}
+.tag{font-size:12px;color:var(--mute);border:1px solid var(--line);padding:6px 10px;border-radius:20px}
+h1{font-family:'Cormorant SC',serif;font-weight:700;font-size:clamp(34px,5vw,64px);line-height:1;margin:18px 0 10px}
+h2{font-family:'Cormorant SC',serif;font-size:clamp(28px,3.4vw,42px);margin:0 0 8px}
+.lead{color:var(--mute);max-width:640px;font-size:17px;line-height:1.55}
+section{padding:56px 0;border-top:1px solid #221c17}
+
+/* device switch */
+.switch{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px;margin:18px 0}
+.switch button{all:unset;cursor:pointer;padding:9px 16px;border-radius:9px;font-weight:600;font-size:14px;color:var(--mute)}
+.switch button.on{background:var(--ember);color:#1a0d04}
+
+/* stage */
+.stage{position:relative;margin:0 auto;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#120f0c;transition:width .45s cubic-bezier(.2,.8,.2,1),height .45s cubic-bezier(.2,.8,.2,1);width:100%;height:620px;user-select:none}
+.stage.mobile{width:380px;height:760px;border-radius:38px;border:10px solid #2a231d}
+#scene{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+.hud{position:absolute;inset:0;pointer-events:none}
+.hud > *{pointer-events:auto}
+
+.pframe{position:absolute;left:16px;top:16px;display:flex;gap:10px;align-items:center;background:linear-gradient(180deg,rgba(35,29,24,.92),rgba(20,16,13,.92));border:1px solid var(--line);border-radius:14px;padding:10px 14px 10px 10px;min-width:270px}
+.ava{width:52px;height:52px;border-radius:12px;background:radial-gradient(circle at 40% 35%,#ffcf8a,#b4521c 60%,#3a170a);position:relative;box-shadow:inset 0 0 0 2px #00000055}
+.ava span{position:absolute;right:-6px;bottom:-6px;background:var(--xp);color:#221800;font-weight:800;font-size:11px;border-radius:8px;padding:2px 6px}
+.bars{flex:1}
+.bars .nm{font-weight:800;font-size:13px;margin-bottom:6px;display:flex;justify-content:space-between}
+.bars .nm i{font-style:normal;color:var(--mute);font-weight:600}
+.bar{height:10px;border-radius:6px;background:#0b0907;border:1px solid #00000080;overflow:hidden;margin:4px 0;position:relative}
+.bar b{display:block;height:100%;border-radius:5px;transition:width .35s}
+.bar.hp b{background:linear-gradient(90deg,#8e1f1a,var(--hp))}
+.bar.mp b{background:linear-gradient(90deg,#1d4fa8,var(--mp))}
+.bar.xp{height:5px}.bar.xp b{background:var(--xp)}
+
+.eframe{position:absolute;left:50%;top:16px;transform:translateX(-50%);text-align:center;min-width:300px}
+.eframe .en{font-family:'Cormorant SC',serif;font-size:20px;letter-spacing:.06em}
+.eframe .en small{font-family:Manrope;font-size:11px;color:var(--epic);border:1px solid #b06cff66;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:3px}
+.bar.boss{height:14px;border-color:#5a2a20}.bar.boss b{background:linear-gradient(90deg,#7a1410,#e0452f,#ff8a4a)}
+.bar.boss em{position:absolute;inset:0;font:700 10px/14px Manrope;color:#fff;font-style:normal;text-shadow:0 1px 2px #000}
+
+.mini{position:absolute;right:16px;top:16px;width:118px;height:118px;border-radius:50%;border:2px solid var(--line);background:
+ radial-gradient(circle at 50% 50%,#ffb15c 0 3px,transparent 4px),
+ radial-gradient(circle at 70% 30%,#e0452f 0 4px,transparent 5px),
+ radial-gradient(circle at 30% 68%,#57c27a 0 3px,transparent 4px),
+ repeating-linear-gradient(45deg,#1d1814 0 6px,#1a1511 6px 12px);box-shadow:inset 0 0 18px #000}
+.mini:after{content:'N';position:absolute;top:-2px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--ember2);font-weight:800}
+
+.skills{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;gap:8px;background:rgba(20,16,13,.88);border:1px solid var(--line);border-radius:16px;padding:8px}
+.sk{width:58px;height:58px;border-radius:12px;border:1px solid #4a3d31;background:#241e19;position:relative;cursor:pointer;display:grid;place-items:center;overflow:hidden;transition:transform .12s}
+.sk:active{transform:scale(.94)}
+.sk svg{width:30px;height:30px}
+.sk kbd{position:absolute;left:5px;top:3px;font:700 10px Manrope;color:var(--mute)}
+.sk .cd{position:absolute;inset:0;background:conic-gradient(rgba(0,0,0,.72) var(--a,0deg),transparent 0);pointer-events:none}
+.sk .cost{position:absolute;right:4px;bottom:2px;font:700 10px Manrope;color:var(--mp)}
+.sk.ult{border-color:var(--legend);box-shadow:0 0 0 1px #ff9a3c44,0 0 18px #ff7a2f33}
+
+.bag{position:absolute;right:16px;bottom:18px;width:46px;height:46px;border-radius:12px;background:#241e19;border:1px solid #4a3d31;display:grid;place-items:center;cursor:pointer}
+.bag i{position:absolute;top:-6px;right:-6px;background:var(--ember);color:#1a0d04;font:800 10px Manrope;border-radius:8px;padding:2px 5px;font-style:normal}
+
+.log{position:absolute;left:16px;bottom:18px;width:250px;font-size:12px;line-height:1.5;color:var(--mute);background:rgba(15,12,10,.7);border-radius:10px;padding:8px 10px;max-height:96px;overflow:hidden}
+.log b{color:var(--ink)} .log .c{color:var(--ember2)}
+
+.dmg{position:absolute;font:800 26px Manrope;color:#ffd38a;text-shadow:0 2px 0 #4a1a00,0 0 12px #ff7a2f;pointer-events:none;animation:up 1s ease-out forwards}
+.dmg.crit{font-size:36px;color:#fff1c2}
+@keyframes up{0%{transform:translate(-50%,0) scale(.6);opacity:0}15%{transform:translate(-50%,-14px) scale(1.15);opacity:1}100%{transform:translate(-50%,-80px) scale(1);opacity:0}}
+
+.reward{position:absolute;inset:0;display:none;place-items:center;background:radial-gradient(circle,rgba(255,122,47,.18),rgba(0,0,0,.75))}
+.reward.on{display:grid}
+.rcard{background:var(--panel);border:1px solid var(--legend);border-radius:18px;padding:22px 26px;text-align:center;width:min(340px,86%);animation:pop .4s cubic-bezier(.2,1.4,.4,1)}
+@keyframes pop{from{transform:scale(.7);opacity:0}}
+.rcard h3{font-family:'Cormorant SC',serif;font-size:30px;margin:0 0 4px;color:var(--ember2)}
+.loot{display:flex;justify-content:center;gap:10px;margin:16px 0}
+.btn{all:unset;cursor:pointer;background:var(--ember);color:#1a0d04;font-weight:800;padding:12px 22px;border-radius:12px;display:inline-block}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+
+/* mobile hud */
+.stage.mobile .pframe{min-width:0;left:10px;right:10px;top:10px;padding:8px}
+.stage.mobile .ava{width:40px;height:40px}
+.stage.mobile .eframe{top:84px;min-width:0;width:80%}
+.stage.mobile .mini{width:64px;height:64px;top:150px;right:10px}
+.stage.mobile .log{display:none}
+.stage.mobile .skills{left:auto;right:10px;transform:none;bottom:14px;display:grid;grid-template-columns:repeat(2,64px);gap:10px;background:none;border:0}
+.stage.mobile .sk{width:64px;height:64px;border-radius:50%}
+.stage.mobile .sk.ult{grid-column:1/3;width:84px;height:84px;justify-self:center}
+.stage.mobile .bag{left:14px;right:auto;bottom:22px;width:56px;height:56px;border-radius:50%}
+.stage.mobile .stick{display:block}
+.stick{display:none;position:absolute;left:24px;bottom:100px;width:120px;height:120px;border-radius:50%;border:2px solid #ffffff22;background:radial-gradient(circle,#ffffff14 0 22px,transparent 23px)}
+.hint{font-size:13px;color:var(--mute);margin-top:10px;text-align:center}
+
+/* ui system */
+.grid2{display:grid;grid-template-columns:1.1fr 1fr;gap:24px;margin-top:26px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px}
+.card h3{margin:0 0 14px;font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.btnrow{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.b{padding:11px 18px;border-radius:11px;font-weight:800;font-size:14px;border:1px solid transparent;cursor:pointer;font-family:Manrope}
+.b.p{background:var(--ember);color:#1a0d04}.b.p:hover{background:var(--ember2)}
+.b.s{background:#2b241e;color:var(--ink);border-color:#4a3d31}.b.s:hover{border-color:var(--ember)}
+.b.d{background:#2b241e;color:#6b6058;cursor:not-allowed}
+.b.g{background:linear-gradient(180deg,#ffcf6a,#d98a1a);color:#2a1600;box-shadow:0 0 0 1px #ffe3a1 inset}
+.inv{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.slot{aspect-ratio:1;border-radius:10px;background:#120f0c;border:1px solid #2f2721;display:grid;place-items:center;position:relative;cursor:grab}
+.slot svg{width:60%;height:60%}
+.slot[data-r=common]{box-shadow:inset 0 -3px 0 var(--common)}
+.slot[data-r=rare]{box-shadow:inset 0 -3px 0 var(--rare),0 0 12px #4aa3ff22}
+.slot[data-r=epic]{box-shadow:inset 0 -3px 0 var(--epic),0 0 12px #b06cff2a}
+.slot[data-r=legend]{box-shadow:inset 0 -3px 0 var(--legend),0 0 16px #ff9a3c40}
+.slot.over{outline:2px dashed var(--ember)}
+.slot small{position:absolute;right:4px;bottom:3px;font-size:10px;font-weight:800;color:var(--ink)}
+.tip{position:fixed;z-index:9;pointer-events:none;background:#16120f;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;width:220px;display:none;box-shadow:0 10px 30px #000a}
+.tip b{display:block;font-size:15px;margin-bottom:4px}
+.tip .st{color:var(--ok)}
+.rar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.rar span{font-size:12px;font-weight:800;padding:5px 10px;border-radius:8px;background:#120f0c;border:1px solid}
+.tok{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px}
+.tok div{border-radius:10px;height:54px;display:flex;align-items:flex-end;padding:6px;font-size:11px;font-weight:800;color:#0008}
+
+/* monsters */
+.mons{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:26px}
+.mon{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;cursor:pointer}
+.mon .art{height:200px;display:grid;place-items:center;border-radius:12px;background:radial-gradient(circle at 50% 70%,#2a211b,#141110 70%)}
+.mon svg{width:150px;height:170px;transition:filter .3s}
+.mon .sil{filter:brightness(0) drop-shadow(0 0 0 #fff)}
+.mon h4{margin:14px 0 4px;font-size:17px}
+.mon p{margin:0;color:var(--mute);font-size:13px;line-height:1.5}
+.pal{display:flex;gap:6px;margin-top:10px}.pal i{width:22px;height:22px;border-radius:6px}
+
+/* plan */
+.plan{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:24px}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px}
+.step b{color:var(--ember2);font-size:13px}
+.step h4{margin:6px 0;font-size:16px}
+.step p{margin:0;color:var(--mute);font-size:13px;line-height:1.5}
+.price{display:flex;flex-wrap:wrap;gap:24px;align-items:center;justify-content:space-between;margin-top:26px;background:linear-gradient(120deg,#2a1a10,#1a1613);border:1px solid #5a3a22;border-radius:18px;padding:24px}
+.price .num{font-family:'Cormorant SC',serif;font-size:44px;color:var(--ember2)}
+footer{padding:30px 0 50px;color:var(--mute);font-size:13px}
+@media(max-width:860px){.grid2,.mons,.plan{grid-template-columns:1fr}.stage{height:560px}.stage.mobile{width:100%;max-width:380px;height:720px}.log{display:none}.pframe{min-width:0}.eframe{min-width:0;width:60%;top:84px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">Пепельный <b>предел</b></div>
+    <div class="tag">Концепция интерфейса · демо</div>
+  </header>
+
+  <h1>Интерфейс, в котором<br>игрок не теряется</h1>
+  <p class="lead">Живая концепция: 3D-сцена боя, HUD, панель умений с перезарядкой, лут и инвентарь. Кликайте по монстру, жмите умения 1-4, переключите вид на телефон - интерфейс перестроится под большой палец.</p>
+
+  <div class="switch" role="tablist">
+    <button class="on" data-v="pc">ПК</button>
+    <button data-v="mobile">Телефон</button>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="scene"></canvas>
+    <div class="hud">
+      <div class="pframe">
+        <div class="ava"><span>27</span></div>
+        <div class="bars">
+          <div class="nm">Ирма, следопыт <i id="hpTxt">820 / 1000</i></div>
+          <div class="bar hp"><b id="hp" style="width:82%"></b></div>
+          <div class="bar mp"><b id="mp" style="width:64%"></b></div>
+          <div class="bar xp"><b id="xp" style="width:38%"></b></div>
+        </div>
+      </div>
+      <div class="eframe">
+        <div class="en">Пепельный страж <small>Элита</small></div>
+        <div class="bar boss"><b id="ehp" style="width:100%"></b><em id="ehpTxt">5 000 / 5 000</em></div>
+      </div>
+      <div class="mini" title="Мини-карта"></div>
+      <div class="log" id="log"><div><b>Пепельный страж</b> пробудился</div></div>
+      <div class="stick" aria-hidden="true"></div>
+      <div class="skills" id="skills"></div>
+      <div class="bag" id="bagBtn" title="Инвентарь"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#efe6d8" stroke-width="1.8"><path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg><i id="bagN">3</i></div>
+      <div class="reward" id="reward">
+        <div class="rcard">
+          <h3>Победа</h3>
+          <div style="color:var(--mute);font-size:14px">+420 опыта · +38 золота</div>
+          <div class="loot" id="loot"></div>
+          <button class="btn" id="again">Призвать снова</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="hint">Тяните мышью или пальцем, чтобы повернуть сцену. Клик по монстру - удар, 1-4 - умения.</p>
+</div>
+
+<section>
+  <div class="wrap">
+    <h2>UI-система, а не набор картинок</h2>
+    <p class="lead">Каждый элемент - компонент в Figma с состояниями. Программист берёт готовые размеры, цвета и ассеты, а новые экраны собираются из тех же деталей.</p>
+    <div class="grid2">
+      <div class="card">
+        <h3>Инвентарь · перетащите предмет</h3>
+        <div class="inv" id="inv"></div>
+        <div class="rar">
+          <span style="color:var(--common);border-color:#9aa3a855">Обычный</span>
+          <span style="color:var(--rare);border-color:#4aa3ff55">Редкий</span>
+          <span style="color:var(--epic);border-color:#b06cff55">Эпический</span>
+          <span style="color:var(--legend);border-color:#ff9a3c55">Легендарный</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Кнопки и состояния</h3>
+        <div class="btnrow">
+          <button class="b p">В бой</button>
+          <button class="b s">Снаряжение</button>
+          <button class="b g">Купить · 120</button>
+          <button class="b d" disabled>Заблокировано</button>
+        </div>
+        <h3>Токены цвета</h3>
+        <div class="tok">
+          <div style="background:var(--hp)">HP</div>
+          <div style="background:var(--mp)">Мана</div>
+          <div style="background:var(--xp)">Опыт</div>
+          <div style="background:var(--ember)">Акцент</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Монстры и NPC: читаются по силуэту</h2>
+    <p class="lead">Нажмите на карточку - увидите силуэт. Если врага узнают по тени за полсекунды, бой на маленьком экране становится честным. Палитра привязана к типу: огонь, яд, нежить.</p>
+    <div class="mons" id="mons"></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Как пройдёт работа</h2>
+    <div class="plan">
+      <div class="step"><b>День 1</b><h4>Разбор игры</h4><p>Прохожу путь игрока на ПК и телефоне, собираю список проблем и приоритеты.</p></div>
+      <div class="step"><b>Дни 2-3</b><h4>UI-система</h4><p>Компоненты, цвета, шрифты, иконки. Ключевые экраны: бой, инвентарь, магазин, награды.</p></div>
+      <div class="step"><b>Дни 4-5</b><h4>Монстры и NPC</h4><p>Силуэты, палитры по типам, спрайты и состояния для анимации.</p></div>
+      <div class="step"><b>Дни 6-7</b><h4>Правки и передача</h4><p>Правки, мобильные версии, экспорт ассетов и гайд для программиста.</p></div>
+    </div>
+    <div class="price">
+      <div><div class="num">20 000 ₽</div><div style="color:var(--mute)">правки включены · до 7 дней вместе с правками</div></div>
+      <div style="max-width:420px;color:var(--mute);font-size:14px;line-height:1.6">Это концепция на вымышленной игре. В работе всё будет построено на ваших экранах, механиках и персонажах.</div>
+    </div>
+  </div>
+</section>
+<div class="wrap"><footer>Демо-концепция интерфейса · Пепельный предел</footer></div>
+<div class="tip" id="tip"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ---------- icons ----------
+const IC={
+ arrow:'<svg viewBox="0 0 32 32" fill="none" stroke="#ffb15c" stroke-width="2.2" stroke-linecap="round"><path d="M5 27 27 5M19 5h8v8M9 19l4 4"/></svg>',
+ frost:'<svg viewBox="0 0 32 32" fill="none" stroke="#7cc4ff" stroke-width="2" stroke-linecap="round"><path d="M16 3v26M5 9.5l22 13M27 9.5l-22 13M12 5l4 4 4-4M12 27l4-4 4 4"/></svg>',
+ heal:'<svg viewBox="0 0 32 32" fill="none" stroke="#57c27a" stroke-width="2.2" stroke-linecap="round"><path d="M16 28S4 20 4 11a6 6 0 0 1 12-2 6 6 0 0 1 12 2c0 9-12 17-12 17Z"/><path d="M16 12v8M12 16h8"/></svg>',
+ ult:'<svg viewBox="0 0 32 32" fill="none" stroke="#ff9a3c" stroke-width="2.2" stroke-linejoin="round"><path d="M17 3 7 18h8l-2 11 12-16h-9l1-10Z"/></svg>',
+ sword:'<svg viewBox="0 0 32 32" fill="none" stroke="#efe6d8" stroke-width="2" stroke-linecap="round"><path d="M24 4h4v4L13 23l-4-4L24 4ZM8 20l4 4M6 26l3-3"/></svg>',
+ shield:'<svg viewBox="0 0 32 32" fill="none" stroke="#4aa3ff" stroke-width="2"><path d="M16 4 26 8v7c0 7-5 11-10 13C11 26 6 22 6 15V8l10-4Z"/></svg>',
+ potion:'<svg viewBox="0 0 32 32" fill="none" stroke="#d8423a" stroke-width="2"><path d="M13 4h6M14 4v7l-6 9a6 6 0 0 0 5 9h6a6 6 0 0 0 5-9l-6-9V4"/><path d="M10 20h12" stroke="#ff8a7a"/></svg>',
+ ring:'<svg viewBox="0 0 32 32" fill="none" stroke="#b06cff" stroke-width="2"><circle cx="16" cy="19" r="8"/><path d="m12 8 4-4 4 4-4 3-4-3Z"/></svg>',
+ gem:'<svg viewBox="0 0 32 32" fill="none" stroke="#ff9a3c" stroke-width="2" stroke-linejoin="round"><path d="M9 5h14l5 7-12 15L4 12l5-7ZM4 12h24M12 5l4 22 4-22"/></svg>',
+ scroll:'<svg viewBox="0 0 32 32" fill="none" stroke="#c9a646" stroke-width="2"><path d="M9 5h15v20a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3v-2h14v2a3 3 0 0 0 3 3M9 5a3 3 0 0 0-3 3v1h3"/><path d="M12 11h8M12 15h8"/></svg>'
+};
+
+// ---------- state ----------
+const S={ehp:5000,max:5000,mp:64,hp:82,xp:38,bag:3};
+const $=id=>document.getElementById(id);
+function log(h){const l=$('log');const d=document.createElement('div');d.innerHTML=h;l.prepend(d);while(l.children.length>5)l.lastChild.remove();}
+function setE(){ $('ehp').style.width=(S.ehp/S.max*100)+'%'; $('ehpTxt').textContent=Math.max(0,S.ehp).toLocaleString('ru')+' / 5 000'; }
+
+// ---------- skills ----------
+const SK=[{k:'1',n:'Пронзающая стрела',i:'arrow',cd:1.2,dmg:[180,260],mp:4},{k:'2',n:'Ледяной залп',i:'frost',cd:4,dmg:[320,420],mp:10},{k:'3',n:'Перевязка',i:'heal',cd:6,heal:14,mp:8},{k:'4',n:'Гнев бури',i:'ult',cd:12,dmg:[900,1200],mp:25,ult:1}];
+const skWrap=$('skills');
+SK.forEach(s=>{const el=document.createElement('div');el.className='sk'+(s.ult?' ult':'');el.title=s.n;el.innerHTML=`<kbd>${s.k}</kbd>${IC[s.i]}<div class="cd"></div><span class="cost">${s.mp}</span>`;el.onclick=()=>cast(s,el);s.el=el;skWrap.appendChild(el);});
+function cast(s,el){
+  if(s.busy||S.ehp<=0)return;
+  if(S.mp<s.mp){log('<span class="c">Не хватает маны</span>');return;}
+  S.mp-=s.mp;$('mp').style.width=S.mp+'%';
+  s.busy=true;const t0=performance.now(),cd=el.querySelector('.cd');
+  (function tick(t){const k=Math.min(1,(t-t0)/(s.cd*1000));cd.style.setProperty('--a',(360*(1-k))+'deg');if(k<1)requestAnimationFrame(tick);else{s.busy=false;cd.style.setProperty('--a','0deg');}})(t0);
+  if(s.heal){S.hp=Math.min(100,S.hp+s.heal);$('hp').style.width=S.hp+'%';$('hpTxt').textContent=S.hp*10+' / 1000';log('<b>Перевязка</b>: +'+s.heal*10+' HP');floatNum('+'+s.heal*10,null,'#57c27a');return;}
+  hit(s.dmg,s.n,s.ult);
+}
+document.addEventListener('keydown',e=>{const s=SK.find(x=>x.k===e.key);if(s)cast(s,s.el);});
+setInterval(()=>{S.mp=Math.min(100,S.mp+1);$('mp').style.width=S.mp+'%';},450);
+
+// ---------- floating numbers ----------
+function floatNum(txt,crit,color){const st=$('stage');const d=document.createElement('div');d.className='dmg'+(crit?' crit':'');d.textContent=txt;if(color)d.style.color=color;
+  const r=st.getBoundingClientRect();d.style.left=(r.width/2+(Math.random()*120-60))+'px';d.style.top=(r.height*.42+(Math.random()*40-20))+'px';st.appendChild(d);setTimeout(()=>d.remove(),1000);}
+
+// ---------- 3D ----------
+const cv=$('scene'),stage=$('stage');
+const R=new THREE.WebGLRenderer({canvas:cv,antialias:true});R.setPixelRatio(Math.min(2,devicePixelRatio));
+const scene=new THREE.Scene();scene.fog=new THREE.Fog(0x120f0c,9,22);
+const cam=new THREE.PerspectiveCamera(42,1,.1,100);
+scene.add(new THREE.HemisphereLight(0xffd2a0,0x1a1210,.55));
+const key=new THREE.PointLight(0xff7a2f,2.2,14);key.position.set(0,1.2,1.6);scene.add(key);
+const rim=new THREE.DirectionalLight(0x6a9cff,.6);rim.position.set(-4,5,-4);scene.add(rim);
+const fill=new THREE.DirectionalLight(0xffe2c0,.5);fill.position.set(4,6,6);scene.add(fill);
+
+// ground
+const ground=new THREE.Mesh(new THREE.CircleGeometry(9,48),new THREE.MeshStandardMaterial({color:0x1d1814,roughness:1,flatShading:true}));ground.rotation.x=-Math.PI/2;scene.add(ground);
+const ring=new THREE.Mesh(new THREE.RingGeometry(2.1,2.25,64),new THREE.MeshBasicMaterial({color:0xff7a2f,transparent:true,opacity:.55}));ring.rotation.x=-Math.PI/2;ring.position.y=.01;scene.add(ring);
+// rocks
+for(let i=0;i<26;i++){const g=new THREE.DodecahedronGeometry(.25+Math.random()*.6,0);const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x2a231d,roughness:1,flatShading:true}));const a=Math.random()*Math.PI*2,d=3.2+Math.random()*5;m.position.set(Math.cos(a)*d,.1,Math.sin(a)*d);m.rotation.set(Math.random(),Math.random(),Math.random());scene.add(m);}
+
+// monster: ash golem built from flat-shaded shapes
+const golem=new THREE.Group();scene.add(golem);
+const stone=new THREE.MeshStandardMaterial({color:0x3b3029,roughness:.9,flatShading:true});
+const emberM=new THREE.MeshStandardMaterial({color:0xff6a1f,emissive:0xff5a10,emissiveIntensity:1.6,flatShading:true});
+const torso=new THREE.Mesh(new THREE.IcosahedronGeometry(.95,0),stone);torso.scale.set(1.15,1.05,.85);torso.position.y=2;golem.add(torso);
+const core=new THREE.Mesh(new THREE.OctahedronGeometry(.32,0),emberM);core.position.set(0,2.05,.62);golem.add(core);
+const head=new THREE.Mesh(new THREE.DodecahedronGeometry(.42,0),stone);head.position.set(0,3.15,.15);golem.add(head);
+const eyeL=new THREE.Mesh(new THREE.BoxGeometry(.14,.05,.05),emberM);eyeL.position.set(-.14,3.18,.52);golem.add(eyeL);
+const eyeR=eyeL.clone();eyeR.position.x=.14;golem.add(eyeR);
+function arm(side){const g=new THREE.Group();const sh=new THREE.Mesh(new THREE.DodecahedronGeometry(.42,0),stone);g.add(sh);
+  const fa=new THREE.Mesh(new THREE.CylinderGeometry(.24,.34,1.1,6),stone);fa.position.y=-.8;g.add(fa);
+  const fist=new THREE.Mesh(new THREE.IcosahedronGeometry(.4,0),stone);fist.position.y=-1.45;g.add(fist);
+  const vein=new THREE.Mesh(new THREE.BoxGeometry(.06,.7,.06),emberM);vein.position.set(0,-.8,.28);g.add(vein);
+  g.position.set(side*1.3,2.5,0);golem.add(g);return g;}
+const aL=arm(-1),aR=arm(1);
+function leg(side){const l=new THREE.Mesh(new THREE.CylinderGeometry(.3,.38,1.2,6),stone);l.position.set(side*.48,.75,0);golem.add(l);}
+leg(-1);leg(1);
+// crystals on back
+for(let i=0;i<5;i++){const c=new THREE.Mesh(new THREE.ConeGeometry(.12,.6+Math.random()*.4,4),emberM);c.position.set(-.6+i*.3,2.75+Math.random()*.2,-.45);c.rotation.set(-.6,0,(i-2)*.25);golem.add(c);}
+// embers particles
+const PN=160,pg=new THREE.BufferGeometry(),pp=new Float32Array(PN*3),ps=[];
+for(let i=0;i<PN;i++){pp[i*3]=(Math.random()-.5)*6;pp[i*3+1]=Math.random()*5;pp[i*3+2]=(Math.random()-.5)*6;ps.push(.004+Math.random()*.01);}
+pg.setAttribute('position',new THREE.BufferAttribute(pp,3));
+const pts=new THREE.Points(pg,new THREE.PointsMaterial({color:0xffa04a,size:.06,transparent:true,opacity:.85}));scene.add(pts);
+
+// camera orbit
+let yaw=.4,pitch=.18,dist=8.2,drag=null,moved=0;
+function placeCam(){cam.position.set(Math.sin(yaw)*dist*Math.cos(pitch),2.2+Math.sin(pitch)*dist,Math.cos(yaw)*dist*Math.cos(pitch));cam.lookAt(0,1.9,0);}
+cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};moved=0;cv.setPointerCapture(e.pointerId);});
+cv.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;moved+=Math.abs(dx)+Math.abs(dy);yaw-=dx*.006;pitch=Math.max(-.05,Math.min(.6,pitch+dy*.004));drag={x:e.clientX,y:e.clientY};});
+cv.addEventListener('pointerup',e=>{if(moved<6)tryHit(e);drag=null;});
+const ray=new THREE.Raycaster(),mv=new THREE.Vector2();
+function tryHit(e){const r=cv.getBoundingClientRect();mv.x=((e.clientX-r.left)/r.width)*2-1;mv.y=-((e.clientY-r.top)/r.height)*2+1;ray.setFromCamera(mv,cam);if(ray.intersectObjects(golem.children,true).length)hit([90,140],'Удар');}
+
+let shake=0,flash=0;
+function hit(range,name,ult){
+  if(S.ehp<=0)return;
+  let d=Math.round(range[0]+Math.random()*(range[1]-range[0]));const crit=Math.random()<.22;if(crit)d=Math.round(d*1.8);
+  S.ehp-=d;setE();floatNum((crit?'КРИТ ':'')+d,crit);shake=ult?.5:crit?.25:.12;flash=1;
+  log(`<b>${name}</b>: <span class="c">${d}</span>${crit?' крит.':''}`);
+  S.xp=Math.min(100,S.xp+1);$('xp').style.width=S.xp+'%';
+  if(S.ehp<=0)setTimeout(win,500);
+}
+function win(){
+  log('<b>Пепельный страж</b> повержен');
+  const L=[['gem','legend','Сердце пепла'],['ring','epic','Кольцо тлеющих углей'],['potion','common','Зелье лечения']];
+  $('loot').innerHTML=L.map(([i,r,n])=>`<div class="slot" data-r="${r}" title="${n}" style="width:64px">${IC[i]}</div>`).join('');
+  $('reward').classList.add('on');S.bag+=3;$('bagN').textContent=S.bag;
+}
+$('again').onclick=()=>{S.ehp=S.max;setE();$('reward').classList.remove('on');golem.scale.set(.01,.01,.01);log('<b>Пепельный страж</b> пробудился');};
+
+function size(){const r=stage.getBoundingClientRect();R.setSize(r.width,r.height,false);cam.aspect=r.width/r.height;cam.updateProjectionMatrix();dist=r.width<500?10.5:8.2;}
+new ResizeObserver(size).observe(stage);size();
+const clock=new THREE.Clock();
+(function loop(){
+  const t=clock.getElapsedTime(),dead=S.ehp<=0;
+  golem.scale.lerp(new THREE.Vector3(dead?.0001:1,dead?.0001:1,dead?.0001:1),.08);
+  golem.position.y=Math.sin(t*1.6)*.06; golem.rotation.y=Math.sin(t*.5)*.18;
+  aL.rotation.x=Math.sin(t*1.6)*.15; aR.rotation.x=-Math.sin(t*1.6)*.15;
+  core.rotation.y=t*2; emberM.emissiveIntensity=1.3+Math.sin(t*3)*.4+flash*2;
+  key.intensity=2+Math.sin(t*3)*.3+flash*3; flash*=.88;
+  ring.material.opacity=.35+Math.sin(t*2)*.2;
+  const a=pg.attributes.position.array;for(let i=0;i<PN;i++){a[i*3+1]+=ps[i];if(a[i*3+1]>5.5)a[i*3+1]=0;}pg.attributes.position.needsUpdate=true;
+  if(!drag)yaw+=.0012;
+  placeCam(); if(shake>0){cam.position.x+=(Math.random()-.5)*shake;cam.position.y+=(Math.random()-.5)*shake;shake*=.85;if(shake<.01)shake=0;}
+  R.render(scene,cam);requestAnimationFrame(loop);
+})();
+
+// device switch
+document.querySelectorAll('.switch button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.switch button').forEach(x=>x.classList.toggle('on',x===b));stage.classList.toggle('mobile',b.dataset.v==='mobile');});
+$('bagBtn').onclick=()=>document.getElementById('inv').scrollIntoView({behavior:'smooth',block:'center'});
+
+// inventory
+const ITEMS=[['sword','rare','Клинок разлома','+42 к атаке','Редкий'],['shield','rare','Щит стража','+30 к защите','Редкий'],['potion','common','Зелье лечения','Восстанавливает 300 HP','Обычный'],['ring','epic','Кольцо тлеющих углей','+12% к огненному урону','Эпический'],['gem','legend','Сердце пепла','Призыв огненного духа','Легендарный'],['scroll','common','Свиток возврата','Телепорт в лагерь','Обычный']];
+const inv=$('inv');const tip=$('tip');
+for(let i=0;i<18;i++){const s=document.createElement('div');s.className='slot';const it=ITEMS[i]&&i<6?ITEMS[i]:(i===8?ITEMS[2]:null);
+  if(it){s.dataset.r=it[1];s.innerHTML=IC[it[0]]+(i===2?'<small>x5</small>':'');s.draggable=true;s.dataset.i=ITEMS.indexOf(it);}
+  inv.appendChild(s);}
+let dragSlot=null;
+inv.addEventListener('dragstart',e=>{dragSlot=e.target.closest('.slot');});
+inv.addEventListener('dragover',e=>{e.preventDefault();const s=e.target.closest('.slot');inv.querySelectorAll('.over').forEach(x=>x.classList.remove('over'));if(s)s.classList.add('over');});
+inv.addEventListener('drop',e=>{e.preventDefault();const s=e.target.closest('.slot');inv.querySelectorAll('.over').forEach(x=>x.classList.remove('over'));if(!s||!dragSlot||s===dragSlot)return;
+  const tmp={h:s.innerHTML,r:s.dataset.r,i:s.dataset.i,d:s.draggable};s.innerHTML=dragSlot.innerHTML;s.dataset.r=dragSlot.dataset.r||'';s.dataset.i=dragSlot.dataset.i||'';s.draggable=true;
+  dragSlot.innerHTML=tmp.h;if(tmp.r)dragSlot.dataset.r=tmp.r;else delete dragSlot.dataset.r;if(tmp.i)dragSlot.dataset.i=tmp.i;else delete dragSlot.dataset.i;dragSlot.draggable=tmp.d;});
+inv.addEventListener('mousemove',e=>{const s=e.target.closest('.slot');if(!s||s.dataset.i===undefined||s.dataset.i===''){tip.style.display='none';return;}const it=ITEMS[s.dataset.i];
+  const col={common:'var(--common)',rare:'var(--rare)',epic:'var(--epic)',legend:'var(--legend)'}[it[1]];
+  tip.innerHTML=`<b style="color:${col}">${it[2]}</b><div style="color:var(--mute);font-size:12px">${it[4]}</div><div class="st">${it[3]}</div>`;tip.style.display='block';tip.style.left=Math.min(innerWidth-230,e.clientX+14)+'px';tip.style.top=(e.clientY+14)+'px';});
+inv.addEventListener('mouseleave',()=>tip.style.display='none');
+
+// monsters
+const MON=[
+ {n:'Тлеющий бес',t:'Огонь · ближний бой',p:['#ff7a2f','#ffb15c','#3b1c10'],svg:'<svg viewBox="0 0 150 170"><path d="M75 20c-8 18-30 22-30 48 0 10 4 18 10 24l-14 30h20l8-18c4 2 4 2 12 2s8 0 12-2l8 18h20l-14-30c6-6 10-14 10-24 0-26-22-30-30-48Z" fill="#ff7a2f"/><path d="M50 40 38 18l20 14M100 40l12-22-20 14" fill="#ffb15c"/><circle cx="64" cy="66" r="5" fill="#3b1c10"/><circle cx="86" cy="66" r="5" fill="#3b1c10"/><path d="M62 84q13 8 26 0" stroke="#3b1c10" stroke-width="4" fill="none"/></svg>'},
+ {n:'Болотная ткачиха',t:'Яд · дальний бой',p:['#57c27a','#c4f06a','#173322'],svg:'<svg viewBox="0 0 150 170"><ellipse cx="75" cy="96" rx="34" ry="26" fill="#57c27a"/><circle cx="75" cy="60" r="20" fill="#3fa062"/><g stroke="#57c27a" stroke-width="6" stroke-linecap="round" fill="none"><path d="M45 90 18 70 8 100M42 104 14 112 10 140M105 90l27-20 10 30M108 104l28 8 4 28"/></g><circle cx="68" cy="56" r="4" fill="#c4f06a"/><circle cx="82" cy="56" r="4" fill="#c4f06a"/><circle cx="75" cy="66" r="3" fill="#c4f06a"/><path d="M75 122v30" stroke="#c4f06a" stroke-width="3" stroke-dasharray="4 4"/></svg>'},
+ {n:'Хранитель склепа',t:'Нежить · NPC-торговец',p:['#9fb4c8','#e8eef5','#1c2430'],svg:'<svg viewBox="0 0 150 170"><path d="M75 18 48 40v40l-14 70h82L102 80V40L75 18Z" fill="#6f8296"/><path d="M58 46h34v26H58z" fill="#1c2430"/><circle cx="67" cy="58" r="4" fill="#e8eef5"/><circle cx="83" cy="58" r="4" fill="#e8eef5"/><path d="M112 40v110" stroke="#9fb4c8" stroke-width="5"/><circle cx="112" cy="34" r="10" fill="#e8eef5"/><rect x="50" y="98" width="50" height="14" rx="4" fill="#9fb4c8"/></svg>'}
+];
+const mw=$('mons');
+MON.forEach(m=>{const d=document.createElement('div');d.className='mon';d.innerHTML=`<div class="art">${m.svg}</div><h4>${m.n}</h4><p>${m.t}</p><div class="pal">${m.p.map(c=>`<i style="background:${c}"></i>`).join('')}</div>`;d.onclick=()=>d.querySelector('svg').classList.toggle('sil');mw.appendChild(d);});
+</script>
+</body>
+</html>
